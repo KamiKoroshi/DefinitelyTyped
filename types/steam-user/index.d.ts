@@ -7,11 +7,240 @@
 import * as SteamID from 'steamid';
 export = SteamUser;
 
-type SteamIDResolvable = SteamID | string
-type NullError = Error | null
+type SteamIDResolvable = SteamID | string;
+type NullError = Error | null;
+type AppID = number;
+
+// TODO document all the types
+//#region SteamChatRoomClient types
+type ChatRoomGroupSummary = {
+    chat_rooms: ChatRoomState[]; // An array of Chat Room State objects
+    top_members: SteamID[]; // An array of SteamID objects representing the group's "top members"
+    chat_group_id: string; // The ID of this chat room group
+    chat_group_name: string; // The name of this chat room group
+    active_member_count: number; // An integer representing how many members are active
+    active_voice_member_count: number; // An integer representing how many members are active in voice
+    default_chat_id: string; // A string containing the numeric ID of the default chat room (channel) in this group
+    chat_group_tagline: string; // The group's tagline
+    appid: AppID | null; // If the chat group is linked to an app, this is its AppID. Otherwise, null.
+    steamid_owner: SteamID; // A SteamID object representing the group's owner
+    watching_broadcast_steamid: SteamID | undefined; // If the group is in a broadcast watch party, this is the SteamID of the broadcaster
+    chat_group_avatar_sha: ArrayBuffer | null; // If the group has an avatar set, this is its SHA-1 hash, as a Buffer. If not, null.
+    chat_group_avatar_url: string | null; // If the group has an avatar set, this is the URL where you can download it. If not, null.
+};
+
+type ChatRoomGroupState = {
+    members: ChatRoomMember[]; // An array of Chat Room Member objects
+    chat_rooms: ChatRoomState[]; // An array of Chat Room State objects
+    kicked: ChatRoomMember[]; // An array of Chat Room Member objects for who got kicked
+    default_chat_id: string; // A string containing the numeric ID of the default chat room (channel) in this group
+    header_state: ChatRoomGroupHeaderState; // A Chat Room Group Header State object
+};
+
+type UserChatRoomGroupState = {
+    chat_group_id: string; // A string containing the numeric ID of the chat room group in question
+    time_joined: Date; // A Date object representing when you joined this group
+    user_chat_room_state: UserChatRoomState[]; // An array of User Chat Room State objects
+    desktop_notification_level: SteamUser.EChatRoomNotificationLevel; // A value from EChatRoomNotificationLevel
+    mobile_notification_level: SteamUser.EChatRoomNotificationLevel; // A value from EChatRoomNotificationLevel
+    time_last_group_ack: Date; // A Date object representing when you last acknowledged messages in this group. null if never.
+    unread_indicator_muted: boolean; // true if you have muted the unread indicator for this group
+};
+
+type UserChatRoomState = {
+    chat_id: string; // A string containing the numeric ID of the chat room in question
+    time_joined: Date; // A Date object representing when you joined this chat room
+    time_last_ack: Date; // A Date object representing when you last acknowledged messages in this chat room. null if never.
+    desktop_notification_level: SteamUser.EChatRoomNotificationLevel; // A value from EChatRoomNotificationLevel
+    mobile_notification_level: SteamUser.EChatRoomNotificationLevel; // A value from EChatRoomNotificationLevel
+    time_last_mention: Date; // A Date object representing when you were last mentioned in this chat room. null if never.
+    unread_indicator_muted: boolean; // true if you have muted the unread indicator for this room
+    time_first_unread: Date; // A Date object representing the oldest un-acknowledged message in this room (added in v4.11.0)
+};
+
+type ChatRoomGroupHeaderState = {
+    chat_group_id: string; // The ID of this chat room group
+    chat_name: string; // The name of this group
+    clanid: SteamID | null; // If this is a chat room group linked to a Steam group, this is the associated Steam group's SteamID object, or null if not linked to a group.
+    steamid_owner: SteamID; // A SteamID object representing the owner of this chat room group
+    appid: AppID | null; // If the chat group is linked to an app, this is its AppID. Otherwise, null.
+    tagline: string; // The group's tagline
+    avatar_sha: ArrayBuffer | null; // If the group has an avatar set, this is its SHA-1 hash, as a Buffer. If not, null.
+    avatar_url: string; // If the group has an avatar set, this is the URL where you can download it. If not, null.
+    default_role_id: string; // The ID of the default role applied to new members
+    roles: ChatRole[]; // An array of Chat Role objects
+    role_actions: ChatRoleActions[]; // An array of Chat Role Actions objects
+    watching_broadcast_steamid: SteamID | undefined; // If the group is in a broadcast watch party, this is the SteamID of the broadcaster
+};
+
+type ChatRoomMember = {
+    steamid: SteamID; // The member's SteamID
+    state: SteamUser.EChatRoomJoinState; // A value from EChatRoomJoinState
+    rank: SteamUser.EChatRoomGroupRank; // A value from EChatRoomGroupRank
+    time_kick_expire: Date | null; // A Date object of when this member's kick expires, or null if not kicked
+    role_ids: string[]; // An array of this member's applied role IDs
+};
+
+type ChatRoomState = {
+    chat_id: string; // A string containing this chat room (channel)'s numeric ID
+    chat_name: string; // The name of this room (channel)
+    voice_allowed: boolean; // true if voice is allowed in this room
+    members_in_voice: SteamID[]; // An array of SteamID objects for who's in this room's voice chat
+    time_last_message: Date; // A Date object representing when the last message was sent to this room
+    sort_order: number; // An integer determining how this room is sorted within its chat group
+    last_message: string; // A string containing the text of the last message sent to this room (added in v4.11.0)
+    steamid_last_message: SteamID; // A SteamID object representing the sender of the last message sent to this room (added in v4.11.0)
+};
+
+type ChatRole = {
+    role_id: string[]; // A string containing this role's numeric ID
+    name: string; // The name of this role
+    ordinal: number; // An integer determining how this role is sorted within its chat group
+};
+
+type ChatRoleActions = {
+    role_id: string; // A string containing the associated role's numeric ID
+    can_create_rename_delete_channel: boolean; // Boolean
+    can_kick: boolean; // Boolean
+    can_ban: boolean; // Boolean
+    can_invite: boolean; // Boolean
+    can_change_tagline_avatar_name: boolean; // Boolean
+    can_chat: boolean; // Boolean
+    can_view_history: boolean; // Boolean
+    can_change_group_roles: boolean; // Boolean
+    can_change_user_roles: boolean; // Boolean
+    can_mention_all: boolean; // Boolean
+    can_set_watching_broadcast: boolean; // Boolean
+};
+
+type IncomingFriendMessage = {
+    steamid_friend: SteamID; // A SteamID object
+    chat_entry_type: SteamUser.EChatEntryType; // A value from EChatEntryType
+    from_limited_account: boolean; // This is true if the message sender is a limited Steam account
+    message: string; // The message text
+    message_no_bbcode: string; // The message text without BBCode tags (if possible; may still contain BBCode for text that has no plaintext alternative, e.g. [flip])
+    server_timestamp: Date; // A Date object for this message's timestamp
+    ordinal: number; // This message's ordinal
+    local_echo: boolean; // This is true if this is a message you sent on another client that is being "echoed" to another client instance
+    low_priority: boolean; // Boolean
+};
+
+type IncomingChatMessage = {
+    chat_group_id: string; // The ID of the chat room group this was sent to
+    chat_id: string; // The ID of the chat room (channel) this was sent to
+    steamid_sender: SteamID; // A SteamID object
+    message: string; // The message text
+    message_no_bbcode: string; // The message text without BBCode tags (if possible; may still contain BBCode for text that has no plaintext alternative, e.g. [flip])
+    server_timestamp: Date; // A Date object for this message's timestamp
+    ordinal: number; // This message's ordinal
+    mentions: ChatMentions | null; // A Chat Mentions object, or null
+    server_message: ServerMessage | null; // A Server Message object, or null
+    chat_name: string; // A string containing the name of the chat room group this message was sent to
+};
+
+type ChatMentions = {
+    mention_all: boolean; // Boolean
+    mention_here: boolean; // Boolean
+    mention_steamids: SteamID[]; // An array of SteamID objects
+};
+
+type ServerMessage = {
+    message: SteamUser.EChatRoomServerMessage; // A value from EChatRoomServerMessage
+    string_param?: string; // An optional string parameter
+    steamid_param?: string; // An optional SteamID object
+};
+//#endregion
+
+//#region SteamChatRoomClient function types
+type GetGroupsResponse = {
+    chat_room_groups: { [key: string]: { group_summary: ChatRoomGroupSummary; group_sate: ChatRoomGroupState } };
+};
+type SetSessionActiveGroupsResponse = { chat_room_groups: { [key: string]: ChatRoomGroupState[] } };
+//#endregion
+
+declare class SteamChatRoomClient {
+    constructor(user: SteamUser);
+
+    /**
+     * Get a list of the chat room groups you're in.
+     * @param {Function} [callback]
+     * @returns {Promise}
+     */
+    getGroups(callback?: (err: Error, response: GetGroupsResponse) => void): Promise<GetGroupsResponse>;
+
+    /**
+     * Set which groups are actively being chatted in by this session. It's unclear what effect this has on the chatting
+     * experience, other than retrieving chat room group states.
+     * @param {number[]|string[]|number|string} groupIDs - Array of group IDs you want data for
+     * @param {Function} [callback]
+     * @returns {Promise}
+     */
+    setSessionActiveGroups(
+        groupIDs: number[] | string[] | number | string,
+        callback?: (err: Error, response: SetSessionActiveGroupsResponse) => void,
+    ): Promise<SetSessionActiveGroupsResponse>;
+}
 
 declare class SteamUser {
     constructor(options?: any);
+
+    // Properties
+    steamID: SteamID | null;
+    chat: SteamChatRoomClient;
+    limitations: {
+        limited: boolean;
+        communityBanned: boolean;
+        locked: boolean;
+        canInviteFriends: boolean;
+    } | null;
+    vac: {
+        numBans: number;
+        appids: number[];
+    } | null;
+    wallet: {
+        hasWaller: boolean;
+        currency: number;
+        balance: number;
+    } | null;
+    emailInfo: {
+        address: string;
+        validated: boolean;
+    } | null;
+    licenses: any[] | null;
+    gifts:
+        | {
+              gid: number;
+              packageid: number;
+              TimeCreated: Date;
+              TimeExpiration: Date;
+              TimeSent: Date;
+              TimeAcked: Date;
+              TimeRedeemed: Date;
+              RecipientAddress: string;
+              SenderAddress: string;
+              SenderName: string;
+          }[]
+        | null;
+
+    users: {};
+    groups: {};
+    chats: {
+        name: string;
+        private: boolean;
+        invisibleToFriends: boolean;
+        officersOnlyChat: boolean;
+        unjoinable: boolean;
+        members: {};
+    };
+    myFriends: {};
+    myGroups: {};
+    myFriendGroups: {};
+    myNicknames: {};
+    steamServers: {};
+    contentServersReady: {};
+    playingState: {};
+
+    // Methods
 
     addFriend(steamID: SteamIDResolvable, callback?: (err: NullError, personaName: string) => void): any;
     addFriendToGroup(groupID: string, userSteamID: SteamIDResolvable, callback?: (err: NullError) => void): any;
@@ -19,9 +248,9 @@ declare class SteamUser {
     blockUser(steamID: SteamIDResolvable, callback?: (err: NullError) => void): any;
     cancelAuthTicket(appid: number, callback: () => void): any;
     cancelTradeRequest(steamID: SteamIDResolvable): void;
-    changeTradeURL(callback: (err: NullError, response: {token: string, url: string}) => void): any;
+    changeTradeURL(callback: (err: NullError, response: { token: string; url: string }) => void): any;
 
-    chatMessage(recipient: SteamIDResolvable, message: string, type: EChatEntryType): void;
+    chatMessage(recipient: SteamIDResolvable, message: string, type: SteamUser.EChatEntryType): void;
 
     chatMsg(recipient: any, message: any, type: any): void;
 
@@ -6338,6 +6567,8 @@ declare class SteamUser {
 }
 
 declare namespace SteamUser {
+    //#region Enums
+    //#region Stream
 
     enum EStreamActivity {
         Idle = 1,
@@ -6356,7 +6587,7 @@ declare namespace SteamUser {
 
     enum EStreamBitrate {
         Autodetect = -1,
-	    Unlimited = 0,
+        Unlimited = 0,
     }
 
     enum EStreamChannel {
@@ -6388,9 +6619,6 @@ declare namespace SteamUser {
         InputMouseUp = 57,
         InputKeyDown = 58,
         InputKeyUp = 59,
-        OBSOLETE = 60,
-        OBSOLETE = 61,
-        OBSOLETE = 62,
         ShowCursor = 63,
         HideCursor = 64,
         SetCursor = 65,
@@ -6399,29 +6627,18 @@ declare namespace SteamUser {
         DeleteCursor = 68,
         SetTargetFramerate = 69,
         InputLatencyTest = 70,
-        OBSOLETE = 71,
         OverlayEnabled = 74,
-        OBSOLETE = 75,
-        OBSOLETE = 76,
-        OBSOLETE = 77,
-        OBSOLETE = 78,
         VideoDecoderInfo = 80,
         SetTitle = 81,
         SetIcon = 82,
         QuitRequest = 83,
         SetQoS = 87,
-        OBSOLETE = 88,
         SetGammaRamp = 89,
         VideoEncoderInfo = 90,
-        OBSOLETE = 93,
         SetTargetBitrate = 94,
-        OBSOLETE = 95,
-        OBSOLETE = 96,
-        OBSOLETE = 97,
         SetActivity = 98,
         SetStreamingClientConfig = 99,
         SystemSuspend = 100,
-        OBSOLETE = 101,
         VirtualHereRequest = 102,
         VirtualHereReady = 103,
         VirtualHereShareDevice = 104,
@@ -6441,12 +6658,12 @@ declare namespace SteamUser {
 
     enum EStreamDataMessage {
         DataPacket = 1,
-	    DataLost = 2,
+        DataLost = 2,
     }
 
     enum EStreamDiscoveryMessage {
         PingRequest = 1,
-	    PingResponse = 2,
+        PingResponse = 2,
     }
 
     enum EStreamFrameEvent {
@@ -6565,7 +6782,7 @@ declare namespace SteamUser {
 
     enum EStreamVersion {
         None = 0,
-	    Current = 1,
+        Current = 1,
     }
 
     enum EStreamVideoCodec {
@@ -6584,6 +6801,7 @@ declare namespace SteamUser {
         VideoData = 1,
         MicrophoneData = 2,
     }
+    //#endregion
 
     enum ESystemIMType {
         RawText = 0,
@@ -6603,7 +6821,7 @@ declare namespace SteamUser {
         Invalid = -1,
         Private = 2,
         FriendsOnly = 4,
-        Public =  8,
+        Public = 8,
     }
 
     enum EUdpPacketType {
@@ -6630,7 +6848,7 @@ declare namespace SteamUser {
     enum EVideoFormat {
         None = 0,
         YV12 = 1,
-        Accel = 2
+        Accel = 2,
     }
 
     enum EWorkshopEnumerationType {
@@ -6645,7 +6863,7 @@ declare namespace SteamUser {
 
     enum EWorkshopFileAction {
         Played = 0,
-        Completed = 1
+        Completed = 1,
     }
 
     enum EWorkshopFileType {
@@ -6655,6 +6873,7 @@ declare namespace SteamUser {
         GameManagedItem = 15,
         Max = 16,
     }
+    //#endregion
 
     // TODO
     function formatCurrency(amount: any, currency: any): any;
