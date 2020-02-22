@@ -8,7 +8,6 @@ import * as SteamID from 'steamid';
 export = SteamUser;
 
 type SteamIDResolvable = SteamID | string;
-type NullError = Error | null;
 type AppID = number;
 
 // TODO document all the types
@@ -20,7 +19,7 @@ type ChatRoomGroupSummary = {
     chat_group_name: string; // The name of this chat room group
     active_member_count: number; // An integer representing how many members are active
     active_voice_member_count: number; // An integer representing how many members are active in voice
-    default_chat_id: string; // A string containing the numeric ID of the default chat room (channel) in this group
+    default_chat_id: string | number; // A string containing the numeric ID of the default chat room (channel) in this group
     chat_group_tagline: string; // The group's tagline
     appid: AppID | null; // If the chat group is linked to an app, this is its AppID. Otherwise, null.
     steamid_owner: SteamID; // A SteamID object representing the group's owner
@@ -151,22 +150,65 @@ type ServerMessage = {
 };
 //#endregion
 
-//#region SteamChatRoomClient function types
-type GetGroupsResponse = {
-    chat_room_groups: { [key: string]: { group_summary: ChatRoomGroupSummary; group_sate: ChatRoomGroupState } };
-};
-type SetSessionActiveGroupsResponse = { chat_room_groups: { [key: string]: ChatRoomGroupState[] } };
-//#endregion
-
 declare class SteamChatRoomClient {
     constructor(user: SteamUser);
 
+    //#region Events
+    public on(event: 'friendMessage', listener: (message: IncomingFriendMessage) => void): this;
+    public on(event: 'friendMessageEcho', listener: (message: IncomingFriendMessage) => void): this;
+    public on(event: 'friendTyping', listener: (message: IncomingFriendMessage) => void): this;
+    public on(event: 'friendTypingEcho', listener: (message: IncomingFriendMessage) => void): this;
+    public on(event: 'friendLeftConversation', listener: (message: IncomingFriendMessage) => void): this;
+    public on(event: 'friendLeftConversationEcho', listener: (message: IncomingFriendMessage) => void): this;
+    public on(event: 'chatMessage', listener: (message: IncomingFriendMessage) => void): this;
+    public on(
+        event: 'chatMessagesModified',
+        listener: (details: {
+            chat_group_id: number | string;
+            chat_id: number | string;
+            messages: {
+                server_timestamp: Date;
+                ordinal: number;
+                deleted: boolean;
+            }[];
+        }) => void,
+    ): this;
+    public on(
+        event: 'chatRoomGroupRoomsChange',
+        listener: (details: {
+            chat_group_id: number | string;
+            default_chat_id: number | string;
+            chat_rooms: ChatRoomState[];
+        }) => void,
+    ): this;
+    //#endregion
+
+    //#region Methods
     /**
      * Get a list of the chat room groups you're in.
      * @param {Function} [callback]
      * @returns {Promise}
      */
-    getGroups(callback?: (err: Error, response: GetGroupsResponse) => void): Promise<GetGroupsResponse>;
+    getGroups(
+        callback?: (
+            err: Error,
+            response: {
+                chat_room_groups: {
+                    [key: string]: {
+                        group_summary: ChatRoomGroupSummary;
+                        group_sate: ChatRoomGroupState;
+                    };
+                };
+            },
+        ) => void,
+    ): Promise<{
+        chat_room_groups: {
+            [key: string]: {
+                group_summary: ChatRoomGroupSummary;
+                group_sate: ChatRoomGroupState;
+            };
+        };
+    }>;
 
     /**
      * Set which groups are actively being chatted in by this session. It's unclear what effect this has on the chatting
@@ -177,8 +219,263 @@ declare class SteamChatRoomClient {
      */
     setSessionActiveGroups(
         groupIDs: number[] | string[] | number | string,
-        callback?: (err: Error, response: SetSessionActiveGroupsResponse) => void,
-    ): Promise<SetSessionActiveGroupsResponse>;
+        callback?: (
+            err: Error,
+            response: {
+                chat_room_groups: {
+                    [key: string]: ChatRoomGroupState[];
+                };
+            },
+        ) => void,
+    ): Promise<{
+        chat_room_groups: {
+            [key: string]: ChatRoomGroupState[];
+        };
+    }>;
+
+    /**
+     * Get details from a chat group invite link.
+     * @param {string} linkUrl
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    getInviteLinkInfo(
+        linkUrl: string,
+        callback?: (
+            err: Error,
+            response: {
+                invite_code: string;
+                steamid_sender: SteamID;
+                time_expires: Date | null;
+                group_summary: ChatRoomGroupSummary;
+                time_kick_expire: Date | null;
+                banned: boolean;
+            },
+        ) => void,
+    ): Promise<{
+        invite_code: string;
+        steamid_sender: SteamID;
+        time_expires: Date | null;
+        group_summary: ChatRoomGroupSummary;
+        time_kick_expire: Date | null;
+        banned: boolean;
+    }>;
+
+    /**
+     * Get the chat room group info for a clan (Steam group). Allows you to join a group chat.
+     * @param {SteamID|string} clanSteamID - The group's SteamID or a string that can parse into one
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    getClanChatGroupInfo(
+        clanSteamID: SteamIDResolvable,
+        callback: (
+            err: Error | null,
+            response: {
+                chat_group_summary: ChatRoomGroupSummary;
+            },
+        ) => void,
+    ): Promise<{
+        chat_group_summary: ChatRoomGroupSummary;
+    }>;
+
+    /**
+     * Join a chat room group.
+     * @param {int|string} groupId - The group's ID
+     * @param {string} [inviteCode] - An invite code to join this chat. Not necessary for public Steam groups.
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    joinGroup(
+        groupId: number | string,
+        inviteCode?: string,
+        callback?: (
+            err: Error | null,
+            response: {
+                state: ChatRoomGroupState;
+                user_chat_state: UserChatRoomGroupState;
+            },
+        ) => void,
+    ): Promise<{
+        state: ChatRoomGroupState;
+        user_chat_state: UserChatRoomGroupState;
+    }>;
+
+    /**
+     * Invite a friend to a chat room group.
+     * @param {int} groupId
+     * @param {SteamID|string} steamId
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    inviteUserToGroup(
+        groupId: number,
+        steamId: SteamIDResolvable,
+        callback?: (err: Error | null) => void,
+    ): Promise<undefined>;
+
+    /**
+     * Create an invite link for a given chat group.
+     * @param {int} groupId
+     * @param {{secondsValid?: int, voiceChatId?: int}} [options]
+     * @param {function} [callback]
+     * @returns {Promise<{invite_code: string, invite_url: string, seconds_valid: int}>}
+     */
+    createInviteLink(): any;
+
+    /**
+     * Get all active invite links for a given chat group.
+     * @param {int} groupId
+     * @param {function} [callback]
+     * @returns {Promise<{invite_links: {invite_code: string, invite_url: string, steamid_creator: SteamID, time_expires: Date|null, chat_id: string}[]}>}
+     */
+    getGroupInviteLinks(): any;
+
+    /**
+     * Revoke and delete an active invite link.
+     * @param {string} linkUrl
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    deleteInviteLink(): any;
+
+    /**
+     * Send a direct chat message to a friend.
+     * @param {SteamID|string} steamId
+     * @param {string} message
+     * @param {{[chatEntryType], [containsBbCode]}} [options]
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    sendFriendMessage(): any;
+
+    /**
+     * Inform a friend that you're typing a message to them.
+     * @param {SteamID|string} steamId
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    sendFriendTyping(): any;
+
+    /**
+     * Send a message to a chat room.
+     * @param {int|string} groupId
+     * @param {int|string} chatId
+     * @param {string} message
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    sendChatMessage(): any;
+
+    /**
+     * Get a list of which friends we have "active" (recent) message sessions with.
+     * @param {{conversationsSince?: Date|int}} [options]
+     * @param {function} [callback]
+     * @returns {Promise<{sessions: {steamid_friend: SteamID, time_last_message: Date, time_last_view: Date, unread_message_count: int}[], timestamp: Date}>}
+     */
+    getActiveFriendMessageSessions(): any;
+
+    /**
+     * Get your chat message history with a Steam friend.
+     * @param {SteamID|string} friendSteamId
+     * @param {{maxCount?: int, wantBbcode?: boolean, startTime?: Date|int, startOrdinal?: int, lastTime?: Date|int, lastOrdinal?: int}} [options]
+     * @param {function} [callback]
+     * @returns {Promise<{messages: {sender: SteamID, server_timestamp: Date, ordinal: int, message: string, message_bbcode_parsed: null|Array}[], more_available: boolean}>}
+     */
+    getFriendMessageHistory(): any;
+
+    /**
+     * Get message history for a chat (channel).
+     * @param {int|string} groupId
+     * @param {int|string} chatId
+     * @param {{[maxCount], [lastTime], [lastOrdinal], [startTime], [startOrdinal]}} [options]
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    getChatMessageHistory(): any;
+
+    /**
+     * Acknowledge (mark as read) a chat room.
+     * @param {int} chatGroupId
+     * @param {int} chatId
+     * @param {Date|int} timestamp - The timestamp of the newest message you're acknowledging (will ack all older messages)
+     */
+    ackFriendMessage(): any;
+
+    /**
+     * Acknowledge (mark as read) a friend message
+     * @param {SteamID|string} friendSteamId - The SteamID of the friend whose message(s) you want to acknowledge
+     * @param {Date|int} timestamp - The timestamp of the newest message you're acknowledging (will ack all older messages)
+     */
+    ackChatMessage(): any;
+
+    /**
+     * Delete one or more messages from a chat channel.
+     * @param {int|string} groupId
+     * @param {int|string} chatId
+     * @param {{server_timestamp, ordinal}[]} messages
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    deleteChatMessages(): any;
+
+    /**
+     * Create a text/voice chat room in a group, provided you have permissions to do so.
+     * @param {int|string} groupId - The ID of the group in which you want to create the channel
+     * @param {string} name - The name of your new channel
+     * @param {{isVoiceRoom?: boolean}} [options] - Options for your new room
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    createChatRoom(): any;
+
+    /**
+     * Rename a text/voice chat room in a group, provided you have permissions to do so.
+     * @param {int|string} groupId - The ID of the group in which you want to rename the room
+     * @param {int|string} chatId - The ID of the chat room you want to rename
+     * @param {string} newChatRoomName - The new name for the room
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    renameChatRoom(): any;
+
+    /**
+     * Delete a text/voice chat room in a group (and all the messages it contains), provided you have permissions to do so.
+     * @param {int|string} groupId - The ID of the group in which you want to delete a room
+     * @param {int|string} chatId - The ID of the room you want to delete
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    deleteChatRoom(): any;
+
+    /**
+     * Kick a user from a chat room group.
+     * @param {int|string} groupId
+     * @param {SteamID|string} steamId
+     * @param {Date|int} [expireTime] - Time when they should be allowed to join again. Omit for immediate.
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    kickUserFromGroup(): any;
+
+    /**
+     * Get the ban list for a chat room group, provided you have the appropriate permissions.
+     * @param {int|string} groupId
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    getGroupBanList(): any;
+
+    /**
+     * Ban or unban a user from a chat room group, provided you have the appropriate permissions.
+     * @param {int|string} groupId
+     * @param {string|SteamID} userSteamId
+     * @param {boolean} banState - True to ban, false to unban
+     * @param {function} [callback]
+     * @returns {Promise}
+     */
+    setGroupUserBanState(): any;
+    //#endregion
 }
 
 declare class SteamUser {
@@ -242,13 +539,13 @@ declare class SteamUser {
 
     // Methods
 
-    addFriend(steamID: SteamIDResolvable, callback?: (err: NullError, personaName: string) => void): any;
-    addFriendToGroup(groupID: string, userSteamID: SteamIDResolvable, callback?: (err: NullError) => void): any;
+    addFriend(steamID: SteamIDResolvable, callback?: (err: Error | null, personaName: string) => void): any;
+    addFriendToGroup(groupID: string, userSteamID: SteamIDResolvable, callback?: (err: Error | null) => void): any;
     banFromChat(chatID: SteamIDResolvable, userID: SteamIDResolvable): any;
-    blockUser(steamID: SteamIDResolvable, callback?: (err: NullError) => void): any;
+    blockUser(steamID: SteamIDResolvable, callback?: (err: Error | null) => void): any;
     cancelAuthTicket(appid: number, callback: () => void): any;
     cancelTradeRequest(steamID: SteamIDResolvable): void;
-    changeTradeURL(callback: (err: NullError, response: { token: string; url: string }) => void): any;
+    changeTradeURL(callback: (err: Error | null, response: { token: string; url: string }) => void): any;
 
     chatMessage(recipient: SteamIDResolvable, message: string, type: SteamUser.EChatEntryType): void;
 
