@@ -8,7 +8,6 @@ import * as SteamID from 'steamid';
 export = SteamUser;
 
 type SteamIDResolvable = SteamID | string;
-type AppID = number;
 
 // TODO document all the types
 //#region SteamChatRoomClient types
@@ -21,7 +20,7 @@ type ChatRoomGroupSummary = {
     active_voice_member_count: number; // An integer representing how many members are active in voice
     default_chat_id: string | number; // A string containing the numeric ID of the default chat room (channel) in this group
     chat_group_tagline: string; // The group's tagline
-    appid: AppID | null; // If the chat group is linked to an app, this is its AppID. Otherwise, null.
+    appid: number | null; // If the chat group is linked to an app, this is its AppID. Otherwise, null.
     steamid_owner: SteamID; // A SteamID object representing the group's owner
     watching_broadcast_steamid: SteamID | undefined; // If the group is in a broadcast watch party, this is the SteamID of the broadcaster
     chat_group_avatar_sha: ArrayBuffer | null; // If the group has an avatar set, this is its SHA-1 hash, as a Buffer. If not, null.
@@ -62,7 +61,7 @@ type ChatRoomGroupHeaderState = {
     chat_name: string; // The name of this group
     clanid: SteamID | null; // If this is a chat room group linked to a Steam group, this is the associated Steam group's SteamID object, or null if not linked to a group.
     steamid_owner: SteamID; // A SteamID object representing the owner of this chat room group
-    appid: AppID | null; // If the chat group is linked to an app, this is its AppID. Otherwise, null.
+    appid: number | null; // If the chat group is linked to an app, this is its AppID. Otherwise, null.
     tagline: string; // The group's tagline
     avatar_sha: ArrayBuffer | null; // If the group has an avatar set, this is its SHA-1 hash, as a Buffer. If not, null.
     avatar_url: string; // If the group has an avatar set, this is the URL where you can download it. If not, null.
@@ -321,7 +320,17 @@ declare class SteamChatRoomClient {
      * @param {function} [callback]
      * @returns {Promise<{invite_code: string, invite_url: string, seconds_valid: int}>}
      */
-    createInviteLink(): any;
+    createInviteLink(
+        groupId: number | string,
+        options?: {
+            secondsValid?: number;
+            voiceChatId?: number;
+        },
+        callback?: (
+            err: Error | null,
+            response: { invite_code: string; invite_url: string; seconds_valid: number },
+        ) => void,
+    ): Promise<{ invite_code: string; invite_url: string; seconds_valid: number }>;
 
     /**
      * Get all active invite links for a given chat group.
@@ -478,10 +487,116 @@ declare class SteamChatRoomClient {
     //#endregion
 }
 
+//#region SteamUser Types
+type CMsgClientLogonResponse = {
+    eresult?: number;
+    out_of_game_heartbeat_seconds?: number;
+    in_game_heartbeat_seconds?: number;
+    public_ip?: number;
+    rtime32_server_time?: number;
+    account_flags?: number;
+    cell_id?: number;
+    email_domain?: string;
+    steam2_ticket?: number;
+    eresult_extended?: number;
+    webapi_authenticate_user_nonce?: string;
+    cell_id_ping_threshold?: number;
+    use_pics?: boolean;
+    vanity_url?: string;
+    client_supplied_steamid?: number;
+    ip_country_code?: string;
+    parental_settings?: number;
+    parental_setting_signature?: number;
+    count_loginfailures_to_migrate?: number;
+    count_disconnects_to_migrate?: number;
+    ogs_data_report_time_window?: number;
+    client_instance_id?: number;
+};
+
+type License = {
+    package_id?: number;
+    time_created?: number;
+    time_next_process?: number;
+    minute_limit?: number;
+    minutes_used?: number;
+    payment_method?: number;
+    flags?: number;
+    purchase_country_code?: string;
+    license_type?: number;
+    territory_code?: number;
+    change_number?: number;
+    owner_id?: number;
+};
+
+type Gift = {
+    gid: string; // The ID of this gift/guest pass, as a string (it's a 64-bit number)
+    packageid: string | number; // The ID of the package which this gift/guest pass will grant
+    TimeCreated: Date; // A Date object for when this gift was purchased or guest pass was granted
+    TimeExpiration: Date; // A Date object for when this guest pass will expire (if it's a gift, this will be Mon Jan 18 2038 22:14:07 GMT-0500 (Eastern Standard Time))
+    TimeSent: Date; // A Date object for when this gift/guest pass was sent to you
+    TimeAcked: Date; // Appears to be the same as TimeSent
+    TimeRedeemed: Date | null; // Appears to always be null
+    RecipientAddress: string; // Appears to always be an empty string
+    SenderAddress: string; // Appears to always be an empty string
+    SenderName: string; // The Steam display name of the user who sent you this gift
+};
+
+type ProductInfo = {
+    apps: {
+        [key: number]: {
+            changenumber: number;
+            missingToken: boolean;
+            appinfo: object; // TODO app_info_print
+        };
+    };
+    packages: {
+        [key: number]: {
+            changenumber: number;
+            missingToken: boolean;
+            packageinfo: object; // TODO app_info_print
+        };
+    };
+    unknownApps: number[];
+    unknownPackages: number[];
+};
+
+declare enum EAccountFlags {
+    NormalUser = 0,
+    PersonaNameSet = 1,
+    Unbannable = 2,
+    PasswordSet = 4,
+    Support = 8,
+    Admin = 16,
+    Supervisor = 32,
+    AppEditor = 64,
+    HWIDSet = 128,
+    PersonalQASet = 256,
+    VacBeta = 512,
+    Debug = 1024,
+    Disabled = 2048,
+    LimitedUser = 4096,
+    LimitedUserForce = 8192,
+    EmailValidated = 16384,
+    MarketingTreatment = 32768,
+    OGGInviteOptOut = 65536,
+    ForcePasswordChange = 131072,
+    ForceEmailVerification = 262144,
+    LogonExtraSecurity = 524288,
+    LogonExtraSecurityDisabled = 1048576,
+    Steam2MigrationComplete = 2097152,
+    NeedLogs = 4194304,
+    Lockdown = 8388608,
+    MasterAppEditor = 16777216,
+    BannedFromWebAPI = 33554432,
+    ClansOnlyFromFriends = 67108864,
+    GlobalModerator = 134217728,
+}
+//#endregion
+
 declare class SteamUser {
     constructor(options?: any);
 
-    // Properties
+    //#region Properties
     steamID: SteamID | null;
     chat: SteamChatRoomClient;
     limitations: {
@@ -536,9 +651,67 @@ declare class SteamUser {
     steamServers: {};
     contentServersReady: {};
     playingState: {};
+    //#endregion
 
-    // Methods
+    //#region Events
+    // Template public on(event: 'event', listener: () => void): this
 
+    public on(
+        event: 'loggedOn',
+        listener: (details: CMsgClientLogonResponse, parental: { steamid: SteamID; [key: string]: any }) => void,
+    ): this;
+    public on(
+        event: 'steamGuard',
+        listener: (domain: string | null, callback: (code: string) => void, lastCodeWrong: boolean) => void,
+    ): this;
+    public on(event: 'error', listener: (error: Error) => void): this;
+    public on(event: 'disconnected', listener: (eresult: SteamUser.EResult, msg: string | undefined) => void): this;
+    public on(event: 'sentry', listener: (sentry: ArrayBuffer) => void): this;
+    public on(event: 'webSession', listener: (sessionID: string, cookies: string[]) => void): this;
+    public on(event: 'loginKey', listener: (key: string) => void): this;
+    public on(event: 'newItems', listener: (count: number) => void): this;
+    public on(event: 'newComments', listener: (count: number, myItems: number, discussions: number) => void): this;
+    public on(event: 'tradeOffers', listener: (count: number) => void): this;
+    public on(event: 'communityMessages', listener: (count: number) => void): this;
+    public on(event: 'offlineMessages', listener: (count: number, friends: SteamID[]) => void): this;
+    public on(event: 'vanityURL', listener: (url: string) => void): this;
+    public on(
+        event: 'accountInfo',
+        listener: (
+            name: string,
+            countru: string,
+            authedMachies: number,
+            flags: EAccountFlags,
+            facebookID: string | number,
+            facebookName: string,
+        ) => void,
+    ): this;
+    public on(event: 'emailInfo', listener: (address: string, validated: boolean) => void): this;
+    public on(
+        event: 'accountLimitations',
+        listener: (limited: boolean, communityBanned: boolean, locked: boolean, canInviteFriends: boolean) => void,
+    ): this;
+    public on(event: 'vacBans', listener: (numBans: number, appids: number[]) => void): this;
+    public on(
+        event: 'wallet',
+        listener: (hasWallet: boolean, currency: SteamUser.ECurrencyCode, balance: number) => void,
+    ): this;
+    public on(event: 'licenses', listener: (licenses: License[]) => void): this;
+    public on(event: 'gifts', listener: (gifts: Gift[]) => void): this;
+    public on(event: 'appOwnershipCached', listener: () => void): this;
+    public on(event: 'changelist', listener: (changenumber: number, apps: number[], packages: number[]) => void): this;
+    public on(event: 'appUpdate', listener: (appid: number, data: ProductInfo) => void): this;
+
+    // public on(event: 'friendMessage', listener: (steamID: SteamID, message: string) => void): this;
+    // public on(event: 'friendOrChatMessage', listener: (steamID: SteamID, message: string, room: SteamID) => void): this;
+    // public on(event: 'chatMessage', listener: (room: SteamID, chatter: SteamID, message: string) => void): this;
+    public on(
+        event: 'friendRelationship',
+        listener: (steamID: SteamID, relationship: SteamUser.EFriendRelationship) => void,
+    ): this;
+    //#endregion
+
+    //#region  Methods
     addFriend(steamID: SteamIDResolvable, callback?: (err: Error | null, personaName: string) => void): any;
     addFriendToGroup(groupID: string, userSteamID: SteamIDResolvable, callback?: (err: Error | null) => void): any;
     banFromChat(chatID: SteamIDResolvable, userID: SteamIDResolvable): any;
@@ -724,6 +897,7 @@ declare class SteamUser {
     validateAuthTickets(appid: number, tickets: any[], callback: () => void): any;
 
     webLogOn(): void;
+    //#endregion
 
     static CurrencyData: {
         '1': {
