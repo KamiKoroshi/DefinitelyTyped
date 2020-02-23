@@ -513,6 +513,9 @@ type CMsgClientLogonResponse = {
     client_instance_id?: number;
 };
 
+type User = {};
+type Group = {};
+
 type License = {
     package_id?: number;
     time_created?: number;
@@ -610,7 +613,7 @@ declare class SteamUser {
         appids: number[];
     } | null;
     wallet: {
-        hasWaller: boolean;
+        hasWallet: boolean;
         currency: number;
         balance: number;
     } | null;
@@ -618,7 +621,7 @@ declare class SteamUser {
         address: string;
         validated: boolean;
     } | null;
-    licenses: any[] | null;
+    licenses: License[] | null;
     gifts:
         | {
               gid: number;
@@ -634,8 +637,8 @@ declare class SteamUser {
           }[]
         | null;
 
-    users: {};
-    groups: {};
+    users: { [key: string]: User };
+    groups: { [key: string]: Group };
     chats: {
         name: string;
         private: boolean;
@@ -658,7 +661,7 @@ declare class SteamUser {
 
     public on(
         event: 'loggedOn',
-        listener: (details: CMsgClientLogonResponse, parental: { steamid: SteamID; [key: string]: any }) => void,
+        listener: (details: CMsgClientLogonResponse, parental: { steamid: SteamID; [key: string]: any } | null) => void,
     ): this;
     public on(
         event: 'steamGuard',
@@ -701,14 +704,62 @@ declare class SteamUser {
     public on(event: 'appOwnershipCached', listener: () => void): this;
     public on(event: 'changelist', listener: (changenumber: number, apps: number[], packages: number[]) => void): this;
     public on(event: 'appUpdate', listener: (appid: number, data: ProductInfo) => void): this;
-
-    // public on(event: 'friendMessage', listener: (steamID: SteamID, message: string) => void): this;
-    // public on(event: 'friendOrChatMessage', listener: (steamID: SteamID, message: string, room: SteamID) => void): this;
-    // public on(event: 'chatMessage', listener: (room: SteamID, chatter: SteamID, message: string) => void): this;
+    public on(event: 'packageUpdate', listener: (packageid: number, data: ProductInfo) => void): this;
+    public on(
+        event: 'marketingMessages',
+        listener: (
+            timestamp: Date,
+            messages: {
+                id: string;
+                url: string;
+                flags: number;
+            }[],
+        ) => void,
+    ): this;
+    public on(event: 'tradeRequest', listener: (steamID: SteamID, respond: (accept: boolean) => void) => void): this;
+    public on(
+        event: 'tradeResponse',
+        listener: (
+            steamID: SteamID,
+            response: SteamUser.EEconTradeResponse,
+            restrictions: {
+                steamguardRequiredDays?: number;
+                newDeviceCooldownDays?: number;
+                defaultPasswordResetProbationDays?: number;
+                passwordResetProbationDays?: number;
+                defaultEmailChangeProbationDays?: number;
+                emailChangeProbationDays?: number;
+            },
+        ) => void,
+    ): this;
+    public on(event: 'tradeStarted', listener: (steamID: SteamID) => void): this;
+    public on(event: 'playingState', listener: (blocked: boolean, playingApp?: number) => void): this;
+    public on(event: 'user', listener: (sid: SteamID, user: User) => void): this;
+    public on(event: 'group', listener: (sid: SteamID, group: Group) => void): this;
+    public on(
+        event: 'groupEvent',
+        listener: (sid: SteamID, headline: string, date: Date, gid: string, gameID: number) => void,
+    ): this;
+    public on(event: 'groupAnnouncement', listener: (sid: SteamID, headline: string, gid: string) => void): this;
     public on(
         event: 'friendRelationship',
         listener: (steamID: SteamID, relationship: SteamUser.EFriendRelationship) => void,
     ): this;
+    public on(
+        event: 'groupRelationship',
+        listener: (sid: SteamID, relationship: SteamUser.EClanRelationship) => void,
+    ): this;
+    public on(event: 'friendsList', listener: () => void): this;
+    public on(event: 'friendPersonasLoaded', listener: () => void): this;
+    public on(event: 'groupList', listener: () => void): this;
+    public on(event: 'friendsGroupList', listener: () => void): this;
+    public on(event: 'nicknameList', listener: () => void): this;
+    public on(event: 'nickname', listener: (steamID: SteamID, newNickname: string | null) => void): this;
+    public on(event: 'lobbyInvite', listener: (inviterID: SteamID, lobbyID: SteamID) => void): this;
+    public on(event: 'appLaunched', listener: (appid: number) => void): this;
+    public on(event: 'appQuit', listener: (appid: number) => void): this;
+    public on(event: 'receivedFromGC', listener: (appid: number, msgType: string, payload: ArrayBuffer) => void): this;
+
     //#endregion
 
     //#region  Methods
@@ -834,7 +885,20 @@ declare class SteamUser {
 
     logOff(): void;
 
-    logOn(details: any): any;
+    logOn(details?: {
+        accountName?: string; // If logging into a user account, the account's name
+        password?: string; // If logging into an account without a login key or a web logon token, the account's password
+        loginKey?: string; // If logging into an account with a login key, this is the account's login key
+        webLogonToken?: string; // If logging into an account with a client logon token obtained from the web, this is the token
+        steamID?: SteamIDResolvable; //  If logging into an account with a client logon token obtained from the web, this is your account's SteamID, as a string or a SteamID object
+        authCode?: string; // If you have a Steam Guard email code, you can provide it here. You might not need to, see the steamGuard event.
+        twoFactorCode?: string; // If you have a Steam Guard mobile two-factor authentication code, you can provide it here. You might not need to, see the steamGuard event.
+        rememberPassword?: boolean; // true if you want to get a login key which can be used in lieu of a password for subsequent logins. false or omitted otherwise.
+        logonID?: number; // A 32-bit integer to identify this login. The official Steam client derives this from your machine's private IP (it's the obfuscated_private_ip field in CMsgClientLogOn). If you try to logon twice to the same account from the same public IP with the same logonID, the first session will be kicked with reason SteamUser.EResult.LogonSessionReplaced. Defaults to 0 if not specified.
+        machineName?: string; // A string containing the name of this machine that you want to report to Steam. This will be displayed on steamcommunity.com when you view your games list (when logged in).
+        clientOS?: number; // A number to identify your client OS. Auto-detected if you don't provide one.
+        dontRememberMachine?: boolean; // If you're providing an authCode but you don't want Steam to remember this sentryfile, pass true here.
+    }): void;
 
     ownsApp(appid: any, excludeSharedLicenses: any): any;
 
