@@ -220,6 +220,13 @@ nw.Shell.openItem( 'test.txt' );
 nw.Shell.showItemInFolder( 'test.txt' );
 
 /**
+ * nw.Process Tests
+ */
+nw.Process.versions.nw;
+nw.Process.versions.chromium;
+nw.Process.versions["nw-flavor"];
+
+/**
  * nw.Shortcut Tests
  */
 var option = {

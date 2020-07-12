@@ -1700,6 +1700,28 @@ namespace nw {
         showItemInFolder( file_path: string ): void;
     }
 
+    /* ProcessVersions: https://nwjs.readthedocs.io/en/latest/References/Changes%20to%20Node/#process */
+    /**
+     * `ProcessVersions` is an extension to the NodeJS ProcessVersions interface.
+     */
+    interface ProcessVersions extends NodeJS.ProcessVersions {
+        'nw': string;
+        'chromium': string;
+        'nw-flavor': string;
+    }
+
+    /* Process: https://nwjs.readthedocs.io/en/latest/References/Changes%20to%20Node/#process */
+    /**
+     * `Process` is an extension to the NodeJS process API.
+     */
+    interface Process extends NodeJS.Process {
+
+        /**
+         * The versions of the nw.js process.
+         */
+        versions: ProcessVersions;
+    }
+
     /* Shortcut: http://docs.nwjs.io/en/latest/References/Shortcut/ */
     /**
      * `Shortcut` represents a global keyboard shortcut, also known as system-wide hotkey.
@@ -1836,6 +1858,7 @@ namespace nw {
     export var Screen: Screen;
     export var Shell: Shell;
     export var Window: Window;
+    export var Process: Process;
 }
 }
 
@@ -1853,4 +1876,5 @@ declare module "nw.gui" {
     export var Screen: nw.Screen;
     export var Shell: nw.Shell;
     export var Window: nw.Window;
+    export var Process: nw.Process;
 }
